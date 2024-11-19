@@ -1,0 +1,41 @@
+<html>
+        <head>
+                <title>V2</title>
+        </head>
+        <body>
+                <a href='/reset'>reset</a>
+                <textarea style="width: 100%; height: 5rem;" onkeydown="handleKeyDown(this, event)"></textarea>
+                <div id="content-container"></div>
+                <script>
+                        function handleKeyDown(inputElement, event) {
+                                if (event.key !== 'Enter' || event.shiftKey) return;
+
+                                event.preventDefault();
+
+                                console.log('sending prompt')
+
+                                fetch('/generate', {
+                                        method: 'post',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({
+                                                prompt: inputElement.value
+                                        }),
+                                })
+                                        .then(response => response.text())
+                                        .then(code => {
+                                                console.log(code);
+                                                /*for (const key in code) {
+                                                        if (code.hasOwnProperty(key)) {
+                                                                console.log(code[key]);
+                                                        }
+                                                }
+
+                                                document.getElementById('content-container').innerHTML = code['html'];
+                                                const scriptTag = document.createElement('script');
+                                                scriptTag.innerHTML = code['javascript'];
+                                                document.getElementById('content-container').appendChild(scriptTag);*/
+                                        });
+                        }
+                </script>
+        </body>
+</html>
