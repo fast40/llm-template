@@ -1,53 +1,56 @@
 <html>
         <head>
-                <title>V2</title>
+                <title>LLM Playground</title>
                 <style>
                         * {
                                 box-sizing: border-box;
                                 margin: 0;
+                                font-family: monospace;
                         }
 
                         textarea {
                                 position: fixed;
-                                bottom: 0.5rem;
-                                left: 0.5rem;
-                                right: 0.5rem;
+                                bottom: 0rem;
+                                left: 0rem;
+                                right: 0rem;
                                 height: 6rem;
                                 resize: none;
                                 border-radius: 0;
+                                border: none;
                                 outline: none;
-                                border: 1px solid black;
                                 font-size: 1rem;
-                                padding: 0.25rem;
+                                background: white;
+                                color: black;
+                        }
+
+                        body {
+                                background: black;
+                                color: white;
                         }
 
                         #chat-container {
                                 display: flex;
                                 flex-direction: column;
-                                gap: 0.5rem;
-                                margin: 0.5rem;
+                                /*gap: 0.5rem;
+                                margin: 0.5rem;*/
                                 margin-bottom: 6.5rem;
                         }
 
-                        .message {
-                                border-radius: 0.25rem;
-                                padding: 0.25rem 0.5rem;
-                        }
-
-                        .message::before {
-                                content: "\274C";
-                                cursor: pointer;
-                                background: red;
-                        }
+                        /*.message {
+                                padding: 0.125rem 0.25rem;
+                        }*/
 
                         .message.user {
                                 align-self: flex-end;
-                                background: rgb(100, 200, 200);
+                                /*background: rgb(53, 3, 252);
+                                color: white;*/
+                                /*border: 1px solid black;*/
+                                color: black;
+                                background-color: white;
                         }
 
                         .message.assistant {
                                 align-self: flex-start;
-                                background: rgb(220, 220, 220);
                         }
                 </style>
         </head>
@@ -71,32 +74,61 @@
 
                                 event.preventDefault();
 
-                                const userInput = inputElement.value;
+                                const prompt = inputElement.value;
                                 inputElement.value = '';
 
-                                if (userInput == ':r') {
+                                if (prompt == ':r') {
                                         fetch('/reset-chat')
                                         document.getElementById('chat-container').innerHTML = '';
                                         return;
                                 }
 
-                                createMessage('user', userInput);
+                                if (prompt === '') {
+                                        if (!confirm('Do you want to get llm response without creating a new message?')) {
+                                                return;
+                                        }
+                                }
+                                else {
+                                        createMessage('user', prompt);
+                                }
 
-                                fetch('/llm', {
-                                        method: 'post',
+                                runLLM(prompt);
+                        }
+
+                        async function runLLM(prompt) {
+                                const response = await fetch('/llm', {
+                                        method: 'POST',
                                         headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({
-                                                prompt: userInput
-                                        }),
-                                })
-                                        .then(response => response.text())
-                                        .then(response => {
-                                                if (response == 'reset-chat') {
-                                                        document.getElementById('chat-container').innerHTML = '';
-                                                        return;
-                                                }
-                                                createMessage('assistant', response);
-                                        });
+                                        body: JSON.stringify({ prompt })
+                                });
+
+                                const messageElement = document.createElement('p');
+                                messageElement.classList.add('assistant', 'message');
+                                document.getElementById('chat-container').appendChild(messageElement);
+
+                                processJSONStream(response, function(obj) {
+                                        messageElement.innerHTML += obj.content;
+                                });
+                        }
+
+                        async function processJSONStream(response, callback) {
+                                const reader = response.body.getReader();
+                                const decoder = new TextDecoder();
+
+                                let text = '';
+
+                                while (true) {
+                                        const { done, value } = await reader.read();
+                                        if (done) break;
+                                        text += decoder.decode(value)
+                                        const objStrings = text.split('\n');
+
+                                        for (let objString of objStrings.slice(0, -1)) { // slice(0, -1) excludes the last value
+                                                callback(JSON.parse(objString));
+                                        }
+
+                                        text = objStrings[objStrings.length - 1];
+                                }
                         }
                 </script>
         </body>
